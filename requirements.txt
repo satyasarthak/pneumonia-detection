@@ -1,0 +1,19 @@
+# Backend / ML dependencies
+tensorflow>=2.15,<2.17
+pydicom>=2.4
+numpy>=1.26
+pandas>=2.0
+pillow>=10.0
+scikit-learn>=1.3
+opencv-python-headless>=4.8
+
+# EDA / visualization
+matplotlib>=3.7
+seaborn>=0.13
+
+# Frontend
+streamlit>=1.30
+
+# Testing
+pytest>=7.4
+hypothesis>=6.90

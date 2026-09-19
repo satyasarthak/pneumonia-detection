@@ -1,0 +1,29 @@
+# Data archives and CSVs (not needed to serve the app)
+*.zip
+*.csv
+*.pdf
+
+# Local envs / caches
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+
+# Tests and dev drivers (not part of the runtime image)
+tests/
+run_*.py
+
+# Outputs / notebooks
+outputs/
+.ipynb_checkpoints/
+
+# Keep the serialized model; ignore the intermediate baseline copy.
+models/baseline_cnn.keras
+models/test_split.csv
+
+# Git / IDE
+.git/
+.gitignore
+.kiro/

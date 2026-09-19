@@ -1,0 +1,23 @@
+# Large data archives (do NOT commit; download separately)
+*.zip
+
+# Python caches / envs
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.hypothesis/
+.ipynb_checkpoints/
+
+# Intermediate training artifacts (keep only models/best_model.keras).
+# best_model.keras already holds the winning model; per-backbone copies are
+# large (ResNet50 ~94MB) and not needed in the repo.
+models/baseline_cnn.keras
+models/transfer_mobilenetv2.keras
+models/transfer_resnet50.keras
+models/test_split.csv
+
+# OS
+.DS_Store
+Thumbs.db
