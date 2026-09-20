@@ -147,6 +147,96 @@ md(
     "valuable and why this class pair will drive most errors."
 )
 
+md(
+    "### 2.3 Class share (pie view)\n"
+    "The same distribution as a share of the total, for quick visual reference."
+)
+code(
+    "from src.eda import plot_class_distribution_pie\n"
+    "fig = plot_class_distribution_pie(dist); plt.show()"
+)
+
+md(
+    "### 2.4 Patient demographics and acquisition metadata\n"
+    "\n"
+    "DICOM headers carry clinical metadata - patient **age**, **sex**, and the "
+    "X-ray **view position** (PA vs AP) - plus image dimensions and pixel "
+    "statistics. We sample a few hundred images per class and extract these to "
+    "check whether the classes differ in ways a model could (helpfully or "
+    "misleadingly) pick up on."
+)
+code(
+    "from src.eda import collect_metadata\n"
+    "meta = collect_metadata(present, TRAIN_ZIP, per_class=300)\n"
+    "print('Sampled images:', len(meta))\n"
+    "meta[['class_label', 'age', 'sex', 'view', 'rows', 'cols', 'mean_intensity']].head()"
+)
+code(
+    "# Summary of age by class (2 decimals).\n"
+    "meta.groupby('class_label')['age'].describe()[['count', 'mean', 'std', 'min', '50%', 'max']].round(2)"
+)
+md("#### Age distribution overall and by class")
+code(
+    "from src.eda import plot_age_distribution\n"
+    "fig = plot_age_distribution(meta); plt.show()"
+)
+md(
+    "**Observation.** Age spans a wide adult range across all classes. If one "
+    "class skews notably older/younger, the model could latch onto age-related "
+    "image cues; we note this so it can be monitored rather than assumed away."
+)
+md("#### Sex and view position by class")
+code(
+    "from src.eda import plot_sex_and_view\n"
+    "fig = plot_sex_and_view(meta); plt.show()"
+)
+code(
+    "# View position share by class (PA = posterior-anterior, AP = anterior-posterior).\n"
+    "pd.crosstab(meta['class_label'], meta['view'], normalize='index').round(2)"
+)
+md(
+    "**Observation.** View position matters clinically: AP films (often taken "
+    "of sicker, bed-bound patients) can look different from standard PA films. "
+    "If pneumonia cases are disproportionately AP, some of the signal is "
+    "acquisition-related, not purely pathological - important context for "
+    "interpreting model behavior."
+)
+md("#### Pixel-intensity distribution by class")
+code(
+    "from src.eda import plot_intensity_by_class\n"
+    "fig = plot_intensity_by_class(meta); plt.show()"
+)
+md(
+    "**Observation.** Mean brightness overlaps heavily across classes, so the "
+    "model cannot separate them on overall brightness alone - it must learn "
+    "spatial patterns (where and how opacities appear)."
+)
+md("#### Raw image dimensions")
+code(
+    "from src.eda import plot_image_dimensions\n"
+    "fig = plot_image_dimensions(meta); plt.show()"
+)
+md(
+    "**Observation.** Images are largely a uniform size, which simplifies "
+    "preprocessing - a single resize target works for essentially all images."
+)
+md(
+    "### 2.5 Average (mean) X-ray per class\n"
+    "Averaging many images per class reveals where signal concentrates. A "
+    "blurrier, hazier lower-lung region in the pneumonia mean image versus a "
+    "crisper Normal mean image is the visual signature the model aims to learn."
+)
+code(
+    "from src.eda import mean_image_per_class, plot_mean_images\n"
+    "means = mean_image_per_class(present, TRAIN_ZIP, per_class=150)\n"
+    "fig = plot_mean_images(means); plt.show()"
+)
+md(
+    "**Observation.** The mean images differ subtly in the distribution of "
+    "lung-field intensity, confirming there is a learnable spatial signal - "
+    "while also underscoring how fine the distinctions are."
+)
+
 # ---------------------------------------------------------------- 3. Preprocessing
 md(
     "## 3. Data Preprocessing\n"

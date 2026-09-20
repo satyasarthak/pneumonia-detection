@@ -93,6 +93,44 @@ def main() -> None:
     fig.savefig(os.path.join(OUT_DIR, "sample_images_per_class.png"), dpi=120)
     print(f"  -> saved outputs/sample_images_per_class.png")
 
+    # Pie view of class share.
+    from src.eda import plot_class_distribution_pie
+    fig = plot_class_distribution_pie(dist)
+    fig.savefig(os.path.join(OUT_DIR, "class_share_pie.png"), dpi=120)
+    print("  -> saved outputs/class_share_pie.png")
+
+    # Demographics + acquisition + pixel-statistics metadata (sampled).
+    print("\nCollecting DICOM metadata (sampled per class)...")
+    from src.eda import (
+        collect_metadata,
+        mean_image_per_class,
+        plot_age_distribution,
+        plot_image_dimensions,
+        plot_intensity_by_class,
+        plot_mean_images,
+        plot_sex_and_view,
+    )
+
+    meta = collect_metadata(present, TRAIN_ZIP, per_class=300)
+    meta.to_csv(os.path.join(OUT_DIR, "eda_metadata_sample.csv"), index=False)
+    print(f"  sampled {len(meta)} images -> saved outputs/eda_metadata_sample.csv")
+
+    for fig_fn, fname in (
+        (lambda: plot_age_distribution(meta), "eda_age.png"),
+        (lambda: plot_sex_and_view(meta), "eda_sex_view.png"),
+        (lambda: plot_intensity_by_class(meta), "eda_intensity.png"),
+        (lambda: plot_image_dimensions(meta), "eda_dimensions.png"),
+    ):
+        f = fig_fn()
+        f.savefig(os.path.join(OUT_DIR, fname), dpi=120)
+        print(f"  -> saved outputs/{fname}")
+
+    print("\nComputing mean image per class...")
+    means = mean_image_per_class(present, TRAIN_ZIP, per_class=150)
+    fig = plot_mean_images(means)
+    fig.savefig(os.path.join(OUT_DIR, "eda_mean_images.png"), dpi=120)
+    print("  -> saved outputs/eda_mean_images.png")
+
     # --- 3. Preprocessing demo with before/after (Req 3.1, 3.2, 3.3, 3.6) ---
     section("3. DATA PREPROCESSING")
     with ImageSource(TRAIN_ZIP) as src:

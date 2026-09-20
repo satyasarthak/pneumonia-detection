@@ -58,23 +58,82 @@ samples of the smallest. The most under-represented class is "Lung Opacity"
 would tend to under-predict pneumonia, so we apply class weighting during
 training.
 
+*Figure (pie view): `outputs/class_share_pie.png`*
+
 ### 3.2 Sample images per class
 
 *Figure: `outputs/sample_images_per_class.png`*
 
-**Observation.** X-rays vary in size and brightness, and the visual difference
-between true pneumonia and the "look-alike" abnormal class is subtle. This
-subtlety is the core modeling challenge and the main expected source of
-misclassification.
+**Observation.** X-rays vary in brightness, and the visual difference between
+true pneumonia and the "look-alike" abnormal class is subtle. This subtlety is
+the core modeling challenge and the main expected source of misclassification.
 
-### 3.3 Key EDA takeaways
+### 3.3 Patient demographics (age and sex)
+
+Sampled from DICOM headers (~300 images per class).
+
+| Class | Mean age | % Female | % Male |
+| --- | --- | --- | --- |
+| Normal | 44.6 | 47% | 53% |
+| Lung Opacity (pneumonia) | 45.9 | 40% | 60% |
+| No Lung Opacity / Not Normal | 49.7 | 46% | 54% |
+
+*Figures: `outputs/eda_age.png`, `outputs/eda_sex_view.png`*
+
+**Observation.** Age is broadly similar across classes (mid-40s), so age is not
+a strong differentiator. Sex is fairly balanced, with pneumonia cases skewing
+slightly male.
+
+### 3.4 View position — an important confound
+
+The X-ray **view position** differs sharply by class:
+
+| Class | % PA | % AP |
+| --- | --- | --- |
+| Normal | 85% | 15% |
+| No Lung Opacity / Not Normal | 43% | 57% |
+| Lung Opacity (pneumonia) | 20% | 80% |
+
+*Figure: `outputs/eda_sex_view.png`*
+
+**Observation — this matters.** AP (anterior–posterior) films are typically
+taken of sicker, bed-bound patients, whereas standard PA films are for
+ambulatory patients. Pneumonia cases here are **80% AP** while Normal cases are
+**85% PA**. This means some of the "signal" separating the classes is
+acquisition-related, not purely pathological — a model could partly learn
+"this looks like an AP film" as a proxy for pneumonia. This is a known bias in
+chest-X-ray datasets and should be flagged for any real deployment.
+
+### 3.5 Pixel intensity and image dimensions
+
+*Figures: `outputs/eda_intensity.png`, `outputs/eda_dimensions.png`*
+
+- **Mean pixel intensity** is nearly identical across classes (~121–126 on a
+  0–255 scale), so overall brightness cannot separate them — the model must
+  learn spatial patterns, not global exposure.
+- **Image dimensions** are uniform at **1024×1024** across the sample, so a
+  single resize target works for essentially all images.
+
+### 3.6 Average (mean) X-ray per class
+
+*Figure: `outputs/eda_mean_images.png`*
+
+**Observation.** Averaging ~150 images per class shows subtle differences in
+where lung-field intensity concentrates. The pneumonia mean image is hazier in
+the lower lung fields, versus a crisper Normal mean image — visual confirmation
+that a learnable spatial signal exists, even if it is fine-grained.
+
+### 3.7 Key EDA takeaways
 
 1. Three clean classes, one label per patient, no missing images.
 2. Moderate class imbalance (~2:1) that must be handled in training.
 3. The pneumonia-mimicking class is the largest, making the
    pneumonia-vs-look-alike boundary the key difficulty.
-4. Raw images differ in dimensions and intensity, requiring standardized
-   preprocessing.
+4. **View position is confounded with the label** (pneumonia mostly AP, Normal
+   mostly PA) — a bias to monitor.
+5. Classes are not separable by brightness or age alone; the model must learn
+   spatial lung patterns.
+6. Images are a uniform 1024×1024, simplifying preprocessing.
 
 ---
 
