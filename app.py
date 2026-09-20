@@ -30,14 +30,31 @@ from src.inference import (
 from src.registry import load_model
 
 MODEL_PATH = os.environ.get("MODEL_PATH", os.path.join("models", "best_model.keras"))
+GEOMETRY_FILE = os.path.join("models", "best_model_geometry.txt")
 
-# The served model's expected input. The best model is MobileNetV2 (RGB,
-# 160x160). Override via env vars if you deploy a different model.
-TARGET_CHANNELS = int(os.environ.get("TARGET_CHANNELS", "3"))
-IMAGE_SIZE = (
-    int(os.environ.get("IMAGE_HEIGHT", "160")),
-    int(os.environ.get("IMAGE_WIDTH", "160")),
-)
+
+def _resolve_geometry() -> tuple[int, tuple[int, int]]:
+    """Determine the served model's input geometry (channels, (H, W)).
+
+    Priority: explicit env vars > models/best_model_geometry.txt (written by the
+    training scripts) > sensible default (RGB 160x160). This lets the app adapt
+    automatically when a differently-sized best model is deployed.
+    """
+    default_channels, default_h, default_w = 3, 160, 160
+    if os.path.exists(GEOMETRY_FILE):
+        try:
+            with open(GEOMETRY_FILE) as fh:
+                c, h, w = (int(x) for x in fh.read().strip().split(","))
+            default_channels, default_h, default_w = c, h, w
+        except (ValueError, OSError):
+            pass
+    channels = int(os.environ.get("TARGET_CHANNELS", str(default_channels)))
+    height = int(os.environ.get("IMAGE_HEIGHT", str(default_h)))
+    width = int(os.environ.get("IMAGE_WIDTH", str(default_w)))
+    return channels, (height, width)
+
+
+TARGET_CHANNELS, IMAGE_SIZE = _resolve_geometry()
 
 
 @st.cache_resource

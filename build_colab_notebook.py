@@ -55,26 +55,48 @@ code(
 
 md(
     "## 3. Get the data\n"
-    "The DICOM archives are NOT in the repo (too large). Provide the RSNA data "
-    "one of these ways, then set the paths below:\n"
+    "The DICOM archives are NOT in the repo (too large). Choose **ONE** of the "
+    "two options below.\n"
     "\n"
-    "- **Kaggle API** (fastest): upload your `kaggle.json`, then download the "
-    "RSNA Pneumonia Detection Challenge data; or\n"
-    "- **Google Drive**: upload `stage_2_train_images.zip` and "
-    "`stage_2_detailed_class_info.csv` to Drive and mount it.\n"
+    "### Option A - Google Drive (simplest, recommended)\n"
+    "1. In your Google Drive, create a folder named `pneumonia_data`.\n"
+    "2. Upload these two files into it (from your local project folder):\n"
+    "   - `stage_2_detailed_class_info.csv`\n"
+    "   - `stage_2_train_images.zip`\n"
+    "3. Run the cell below and approve the Drive mount popup.\n"
     "\n"
-    "Below is the Google Drive option (simplest)."
+    "The zip is ~3.7 GB, so the Drive upload can take a while - do it before "
+    "class/overnight. Once uploaded it stays there for reuse."
 )
 code(
+    "# --- Option A: Google Drive ---\n"
     "from google.colab import drive\n"
+    "import shutil, os\n"
     "drive.mount('/content/drive')\n"
     "\n"
-    "# EDIT these to point at your uploaded files in Drive:\n"
-    "import shutil, os\n"
-    "DRIVE = '/content/drive/MyDrive/pneumonia_data'  # folder in your Drive\n"
+    "DRIVE = '/content/drive/MyDrive/pneumonia_data'  # <- the folder you created\n"
+    "assert os.path.isdir(DRIVE), f'Folder not found: {DRIVE}. Create it and upload the files.'\n"
     "shutil.copy(os.path.join(DRIVE, 'stage_2_detailed_class_info.csv'), '.')\n"
     "shutil.copy(os.path.join(DRIVE, 'stage_2_train_images.zip'), '.')\n"
-    "print('Data copied:', os.path.exists('stage_2_train_images.zip'))"
+    "print('CSV present:', os.path.exists('stage_2_detailed_class_info.csv'))\n"
+    "print('ZIP present:', os.path.exists('stage_2_train_images.zip'))"
+)
+md(
+    "### Option B - Kaggle API (skip if you used Option A)\n"
+    "Downloads the data straight into Colab (fast, no manual upload). You need "
+    "a Kaggle account and to have accepted the competition rules.\n"
+    "1. Kaggle -> Account -> Create New API Token -> downloads `kaggle.json`.\n"
+    "2. Run the cell, upload `kaggle.json` when prompted."
+)
+code(
+    "# --- Option B: Kaggle (only run if you did NOT use Option A) ---\n"
+    "# from google.colab import files\n"
+    "# files.upload()  # upload kaggle.json\n"
+    "# !mkdir -p ~/.kaggle && cp kaggle.json ~/.kaggle/ && chmod 600 ~/.kaggle/kaggle.json\n"
+    "# !pip -q install kaggle\n"
+    "# !kaggle competitions download -c rsna-pneumonia-detection-challenge -f stage_2_detailed_class_info.csv\n"
+    "# !kaggle competitions download -c rsna-pneumonia-detection-challenge -f stage_2_train_images.zip\n"
+    "# !unzip -o -q '*.zip.zip' 2>/dev/null; print('done')"
 )
 
 md(
@@ -180,6 +202,9 @@ code(
     "import numpy as np\n"
     "\n"
     "save_model(models[best_name], 'models/best_model.keras')\n"
+    "# Record the geometry so the Streamlit app auto-configures for this model.\n"
+    "with open('models/best_model_geometry.txt', 'w') as fh:\n"
+    "    fh.write(f'3,{SIZE[0]},{SIZE[1]}')\n"
     "reloaded = load_model('models/best_model.keras')\n"
     "\n"
     "tg = XrayBatchGenerator(test_df.head(6), 'stage_2_train_images.zip', batch_size=6,\n"
@@ -202,12 +227,22 @@ md(
     "your report."
 )
 code(
-    "import shutil\n"
+    "import shutil, os\n"
+    "os.makedirs('outputs', exist_ok=True)\n"
     "table.to_csv('outputs/model_comparison_final.csv', index=False)\n"
-    "shutil.copy('models/best_model.keras', DRIVE)\n"
-    "shutil.copy('outputs/model_comparison_final.csv', DRIVE)\n"
-    "print('Saved best_model.keras and comparison to your Drive folder.')\n"
-    "print('Next: download best_model.keras, replace it in your repo, and push.')"
+    "\n"
+    "# If Drive was mounted (Option A), copy artifacts there for easy download.\n"
+    "if 'DRIVE' in globals() and os.path.isdir(DRIVE):\n"
+    "    shutil.copy('models/best_model.keras', DRIVE)\n"
+    "    shutil.copy('models/best_model_geometry.txt', DRIVE)\n"
+    "    shutil.copy('outputs/model_comparison_final.csv', DRIVE)\n"
+    "    print('Saved best_model.keras, geometry, and comparison to your Drive folder.')\n"
+    "else:\n"
+    "    from google.colab import files\n"
+    "    files.download('models/best_model.keras')\n"
+    "    files.download('models/best_model_geometry.txt')\n"
+    "    files.download('outputs/model_comparison_final.csv')\n"
+    "print('Next: replace models/best_model.keras + best_model_geometry.txt in your repo and push.')"
 )
 
 md(
