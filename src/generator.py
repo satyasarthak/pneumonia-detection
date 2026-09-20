@@ -99,9 +99,48 @@ class XrayBatchGenerator(_keras_sequence_base()):  # type: ignore[misc]
         arr = normalize(arr)
         target = GRAYSCALE if self.target_channels == 1 else RGB
         arr = to_channels(arr, target)
-        if self.augment and self._rng.random() < 0.5:
-            arr = arr[:, ::-1, :]  # horizontal flip
+        if self.augment:
+            arr = self._augment(arr)
         return arr.astype(np.float32)
+
+    def _augment(self, arr: np.ndarray) -> np.ndarray:
+        """Light, clinically-plausible augmentation for chest X-rays.
+
+        Uses only transforms that preserve anatomical validity: horizontal
+        flip (left/right is acceptable for this task), small rotation, small
+        zoom, and mild brightness jitter. No vertical flip (upside-down chest
+        X-rays do not occur).
+        """
+        # Horizontal flip.
+        if self._rng.random() < 0.5:
+            arr = arr[:, ::-1, :]
+
+        # Small rotation (+/- ~10 degrees) and zoom via PIL affine.
+        if self._rng.random() < 0.5:
+            from PIL import Image
+
+            angle = float(self._rng.uniform(-10, 10))
+            zoom = float(self._rng.uniform(0.9, 1.1))
+            h, w = arr.shape[:2]
+            channels = []
+            for c in range(arr.shape[-1]):
+                plane = (arr[..., c] * 255.0).clip(0, 255).astype(np.uint8)
+                im = Image.fromarray(plane)
+                im = im.rotate(angle, resample=Image.BILINEAR)
+                # Zoom by resizing then center-cropping/padding back to (w, h).
+                zw, zh = max(1, int(w * zoom)), max(1, int(h * zoom))
+                im = im.resize((zw, zh), Image.BILINEAR)
+                canvas = Image.new("L", (w, h))
+                canvas.paste(im, ((w - zw) // 2, (h - zh) // 2))
+                channels.append(np.asarray(canvas, dtype=np.float32) / 255.0)
+            arr = np.stack(channels, axis=-1)
+
+        # Mild brightness jitter.
+        if self._rng.random() < 0.5:
+            factor = float(self._rng.uniform(0.9, 1.1))
+            arr = np.clip(arr * factor, 0.0, 1.0)
+
+        return arr
 
     def __getitem__(self, idx: int):
         start = idx * self.batch_size

@@ -89,6 +89,56 @@ def _get_backbone(backbone: str, input_shape: tuple[int, int, int]):
     return factory(weights="imagenet", include_top=False, input_shape=input_shape)
 
 
+def build_transfer_model_deep(
+    backbone: str,
+    input_shape: tuple[int, int, int] = (224, 224, 3),
+    num_classes: int = NUM_CLASSES,
+    freeze_base: bool = True,
+    learning_rate: float = 1e-3,
+) -> "keras.Model":
+    """Transfer model with a DEEPER custom head (additional layers).
+
+    This is a distinct architecture from :func:`build_transfer_model`: instead
+    of a single Dense(128) head, it stacks additional trainable layers on top
+    of the pretrained backbone:
+
+        base -> GlobalAveragePooling2D
+             -> Dense(256, ReLU) -> BatchNorm -> Dropout(0.5)
+             -> Dense(128, ReLU) -> BatchNorm -> Dropout(0.3)
+             -> Dense(num_classes, softmax)
+
+    Adding these layers gives the classifier more capacity to model the fine
+    distinctions between the three classes (satisfying the requirement to build
+    new architectures by adding layers on top of pretrained CNNs).
+
+    Requirements: 5.1, 5.2
+    """
+    from tensorflow import keras
+    from tensorflow.keras import layers
+
+    base = _get_backbone(backbone, input_shape)
+    base.trainable = not freeze_base
+
+    inputs = keras.Input(shape=input_shape)
+    x = base(inputs, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
+    x = layers.Dense(256, activation="relu")(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(0.5)(x)
+    x = layers.Dense(128, activation="relu")(x)
+    x = layers.BatchNormalization()(x)
+    x = layers.Dropout(0.3)(x)
+    outputs = layers.Dense(num_classes, activation="softmax")(x)
+
+    model = keras.Model(inputs, outputs, name=f"transfer_{backbone.lower()}_deep")
+    model.compile(
+        optimizer=keras.optimizers.Adam(learning_rate),
+        loss="categorical_crossentropy",
+        metrics=["accuracy"],
+    )
+    return model
+
+
 def build_transfer_model(
     backbone: str,
     input_shape: tuple[int, int, int] = (224, 224, 3),

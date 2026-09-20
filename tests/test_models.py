@@ -17,7 +17,12 @@ import pytest
 tf = pytest.importorskip("tensorflow")
 
 from src.constants import NUM_CLASSES
-from src.models import SUPPORTED_BACKBONES, build_baseline_cnn, build_transfer_model
+from src.models import (
+    SUPPORTED_BACKBONES,
+    build_baseline_cnn,
+    build_transfer_model,
+    build_transfer_model_deep,
+)
 
 
 # --- Property 11: models produce a valid 3-class softmax output ---
@@ -59,6 +64,22 @@ def test_at_least_two_distinct_backbones():
     names = {baseline.name, m1.name, m2.name}
     assert len(names) == 3  # all three architectures are distinct
     assert len({m1.name, m2.name}) == 2  # two distinct transfer backbones
+
+
+def test_deep_head_is_distinct_architecture_with_valid_output():
+    """The deeper-head variant is a separate architecture (more layers) that
+    still produces a valid 3-class softmax. Validates Requirements 5.1, 5.2."""
+    shallow = build_transfer_model("MobileNetV2", input_shape=(32, 32, 3))
+    deep = build_transfer_model_deep("MobileNetV2", input_shape=(32, 32, 3))
+
+    # Distinct name and strictly more layers than the shallow-head model.
+    assert deep.name != shallow.name
+    assert len(deep.layers) > len(shallow.layers)
+
+    batch = np.random.default_rng(2).random((2, 32, 32, 3)).astype("float32")
+    out = deep.predict(batch, verbose=0)
+    assert out.shape == (2, NUM_CLASSES)
+    assert np.allclose(out.sum(axis=1), 1.0, atol=1e-5)
 
 
 def test_unsupported_backbone_rejected():
